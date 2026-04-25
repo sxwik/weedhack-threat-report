@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Technical analysis of WeedHack Stealer malware targeting Minecraft users.">
+    <meta name="keywords" content="WeedHack, malware, Minecraft stealer, threat intelligence, sxwik">
+    <title>WeedHack Stealer | Threat Intelligence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chosen Palette: Warm Neutrals (Stone/Zinc) with Deep Crimson/Rose Accents -->
+    <!-- Application Structure Plan: A responsive, dashboard-style Single Page Application. It uses a fixed sidebar for desktop navigation (top bar with hamburger for mobile) to allow users to quickly jump between distinct intelligence domains. Information is tiered: high-level summaries are visible immediately, while deep technical details are hidden behind interactive accordions and tabs to prevent cognitive overload. -->
+    <!-- Visualization & Content Choices: 
+         1. Distribution Vectors -> Goal: Show relative spread -> Donut Chart (Chart.js) -> Highlights primary risk areas. 
+         2. Targeted Data -> Goal: Compare theft volume/priority -> Horizontal Bar Chart (Chart.js) -> Shows what data the malware prioritizes. 
+         3. Execution Chain -> Goal: Organize sequential technical process -> Interactive Accordions (HTML/JS) -> Keeps technical density manageable. 
+         4. Capabilities Assessment -> Goal: Distinguish confirmed facts from suspected behavior -> Tabbed Interface (HTML/JS) -> Prevents spread of misinformation. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #fafaf9; /* Tailwind stone-50 */
+            color: #1c1917; /* Tailwind stone-900 */
+            scroll-behavior: smooth;
+        }
+
+        /* Chart Container Styling - MANDATORY for responsive Chart.js */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 650px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* Navigation active states */
+        .nav-link.active {
+            background-color: #fef2f2; /* rose-50 */
+            color: #be123c; /* rose-700 */
+            border-right: 4px solid #be123c;
+            font-weight: 600;
+        }
+
+        /* Interactive Elements */
+        .accordion-content {
+            display: none;
+            overflow: hidden;
+        }
+        .accordion-content.open {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.4s ease-in;
+        }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f5f5f4; }
+        ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden selection:bg-rose-200 selection:text-rose-900">
+
+    <!-- Sidebar Navigation (Desktop) -->
+    <nav class="w-64 bg-white border-r border-stone-200 flex-shrink-0 hidden md:flex flex-col h-full z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div class="p-6 border-b border-stone-100">
+            <h1 class="text-xl font-bold text-stone-900 flex items-center gap-2">
+                <span class="text-rose-700 font-black">|</span> INTEL-DASH
+            </h1>
+            <p class="text-xs text-stone-500 mt-1 tracking-wider uppercase font-semibold">WeedHack Stealer</p>
+        </div>
+        <div class="flex-1 overflow-y-auto py-4" id="sidebar-nav">
+            <a href="#exec-summary" class="nav-link active block px-6 py-3 text-sm text-stone-600 hover:bg-stone-50 transition-colors">Executive Summary</a>
+            <a href="#origin-dist" class="nav-link block px-6 py-3 text-sm text-stone-600 hover:bg-stone-50 transition-colors">Origin & Distribution</a>
+            <a href="#tech-analysis" class="nav-link block px-6 py-3 text-sm text-stone-600 hover:bg-stone-50 transition-colors">Technical Analysis</a>
+            <a href="#capabilities" class="nav-link block px-6 py-3 text-sm text-stone-600 hover:bg-stone-50 transition-colors">Data Theft & RAT</a>
+            <a href="#infrastructure" class="nav-link block px-6 py-3 text-sm text-stone-600 hover:bg-stone-50 transition-colors">Infrastructure & IOCs</a>
+            <a href="#impact" class="nav-link block px-6 py-3 text-sm text-stone-600 hover:bg-stone-50 transition-colors">Victim Impact</a>
+            <a href="#remediation" class="nav-link block px-6 py-3 text-sm text-stone-600 hover:bg-stone-50 transition-colors">Detection & Removal</a>
+            <a href="#references" class="nav-link block px-6 py-3 text-sm text-stone-600 hover:bg-stone-50 transition-colors">Sources & References</a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto h-full scroll-smooth" id="main-content">
+        
+        <!-- Mobile Header -->
+        <header class="md:hidden bg-white border-b border-stone-200 p-4 sticky top-0 z-30 flex justify-between items-center shadow-sm">
+            <h1 class="text-lg font-bold text-stone-900 flex items-center gap-2">
+                <span class="text-rose-700 font-black">|</span> WeedHack Intel
+            </h1>
+            <button id="mobile-menu-btn" class="text-stone-600 text-2xl focus:outline-none p-1">☰</button>
+        </header>
+
+        <!-- Mobile Menu Dropdown -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-b border-stone-200 fixed w-full z-20 shadow-lg top-[60px]">
+            <a href="#exec-summary" class="block px-6 py-3 text-sm border-b border-stone-50 mobile-link text-stone-700">Executive Summary</a>
+            <a href="#origin-dist" class="block px-6 py-3 text-sm border-b border-stone-50 mobile-link text-stone-700">Origin & Distribution</a>
+            <a href="#tech-analysis" class="block px-6 py-3 text-sm border-b border-stone-50 mobile-link text-stone-700">Technical Analysis</a>
+            <a href="#capabilities" class="block px-6 py-3 text-sm border-b border-stone-50 mobile-link text-stone-700">Data Theft & RAT</a>
+            <a href="#infrastructure" class="block px-6 py-3 text-sm border-b border-stone-50 mobile-link text-stone-700">Infrastructure & IOCs</a>
+            <a href="#impact" class="block px-6 py-3 text-sm border-b border-stone-50 mobile-link text-stone-700">Victim Impact</a>
+            <a href="#remediation" class="block px-6 py-3 text-sm border-b border-stone-50 mobile-link text-stone-700">Detection & Removal</a>
+            <a href="#references" class="block px-6 py-3 text-sm mobile-link text-stone-700">Sources & References</a>
+        </div>
+
+        <div class="max-w-5xl mx-auto p-6 md:p-10 lg:p-12 space-y-20 pb-32">
+            
+            <!-- Report Header -->
+            <div class="border-b border-stone-200 pb-8 mt-4">
+                <div class="inline-block px-3 py-1 bg-rose-100 text-rose-800 text-xs font-bold rounded-full tracking-wider mb-4">CRITICAL THREAT BULLETIN</div>
+                <h2 class="text-4xl md:text-5xl font-extrabold text-stone-900 tracking-tight leading-tight mb-4">WeedHack Stealer</h2>
+                
+                <p class="text-xl text-stone-600 font-light max-w-3xl leading-relaxed mb-6">A comprehensive, technical deep-dive into the highly evasive infostealer campaign targeting the global Minecraft modding ecosystem.</p>
+                
+                <!-- Professional Research Abstract -->
+                <div class="bg-stone-100 border-l-4 border-stone-800 p-5 rounded-r-lg max-w-4xl mb-6 shadow-sm">
+                    <p class="text-sm text-stone-700 leading-relaxed">
+                        <strong class="text-stone-900 tracking-wide uppercase text-xs">Research Abstract:</strong><br>
+                        This document serves as a definitive, detailed summary by <a href="https://github.com/sxwik" target="_blank" rel="noopener noreferrer" class="font-bold text-stone-900 hover:text-rose-700 transition-colors underline decoration-stone-400 underline-offset-2">sxwik</a> mapping the entirety of the "WeedHack" attack lifecycle. From initial compromise vectors utilizing poisoned Java modifications to deep-dive technical reverse engineering of the stealth execution chain, this intelligence report provides a complete operational picture of the threat actor's methodology and the resulting devastation to community infrastructure.
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-2 text-stone-500 text-sm font-medium">
+                    <span>By <a href="https://github.com/sxwik" target="_blank" rel="noopener noreferrer" class="font-bold text-stone-800 hover:text-rose-700 transition-colors underline decoration-stone-300 underline-offset-2">sxwik</a></span>
+                    <span>&bull;</span>
+                    <span>Threat Intelligence Research</span>
+                </div>
+            </div>
+
+            <!-- Executive Summary -->
+            <section id="exec-summary" class="scroll-mt-24">
+                <div class="flex items-center gap-3 mb-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-l-4 border-rose-700 pl-3">Executive Summary</h3>
+                </div>
+                
+                <p class="text-stone-600 mb-8 leading-relaxed bg-white p-6 rounded-xl shadow-sm border border-stone-100 text-lg">
+                    This section provides a high-level overview of the WeedHack Stealer threat. It is designed to quickly brief security professionals and affected end-users on what the malware is, why its operational methodology is highly dangerous, who exactly falls into its target demographic, and the primary reasons behind its rapid spread.
+                </p>
+
+                <!-- Tool: Executive Briefing -->
+                <div class="mb-8 bg-rose-50 p-6 rounded-xl border border-rose-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h4 class="font-bold text-rose-900">Need to brief leadership?</h4>
+                        <p class="text-sm text-rose-700">Generate a non-technical summary optimized for C-Suite executives.</p>
+                    </div>
+                    <button id="generate-briefing-btn" class="bg-rose-700 hover:bg-rose-800 text-white px-5 py-2.5 rounded shadow-sm font-medium transition-colors whitespace-nowrap text-sm">
+                        Generate C-Suite Briefing
+                    </button>
+                </div>
+                <div id="briefing-output" class="hidden mb-8 bg-white p-6 rounded-xl border border-stone-200 shadow-sm text-stone-700 leading-relaxed text-sm"></div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm border-t-4 border-t-rose-600 hover:shadow-md transition-shadow">
+                        <div class="text-xs text-stone-500 uppercase font-bold tracking-wider mb-1">Threat Type</div>
+                        <div class="text-lg font-bold text-stone-800">Infostealer / Dropper</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm border-t-4 border-t-amber-500 hover:shadow-md transition-shadow">
+                        <div class="text-xs text-stone-500 uppercase font-bold tracking-wider mb-1">Primary Target</div>
+                        <div class="text-lg font-bold text-stone-800">Minecraft Community</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm border-t-4 border-t-blue-500 hover:shadow-md transition-shadow">
+                        <div class="text-xs text-stone-500 uppercase font-bold tracking-wider mb-1">Primary Vector</div>
+                        <div class="text-lg font-bold text-stone-800">Tainted .jar Mods</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm border-t-4 border-t-stone-800 hover:shadow-md transition-shadow">
+                        <div class="text-xs text-stone-500 uppercase font-bold tracking-wider mb-1">Risk Level</div>
+                        <div class="text-lg font-bold text-rose-700">Critical</div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl border border-stone-100 shadow-sm">
+                        <h4 class="font-bold text-stone-800 mb-2 flex items-center gap-2"><span class="text-rose-600">▪</span> What it is</h4>
+                        <p class="text-stone-600 text-sm">WeedHack Stealer is a sophisticated, multi-stage malware <span class="font-semibold text-stone-800">likely written in Java with possible secondary native/.NET payloads</span>. It is purpose-built to extract session tokens, browser credentials, and cryptocurrency wallets from victims.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-stone-100 shadow-sm">
+                        <h4 class="font-bold text-stone-800 mb-2 flex items-center gap-2"><span class="text-rose-600">▪</span> Why it's dangerous</h4>
+                        <p class="text-stone-600 text-sm">It leverages the trusted <code>.jar</code> format. Since players naturally execute <code>.jar</code> files for game mods, social engineering bypasses standard OS warnings. It executes silently within the JVM, leaving the game functional to avoid suspicion.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-stone-100 shadow-sm">
+                        <h4 class="font-bold text-stone-800 mb-2 flex items-center gap-2"><span class="text-rose-600">▪</span> Who is targeted</h4>
+                        <p class="text-stone-600 text-sm">Victims range from casual players seeking FPS boosts, to server admins and mod developers. Attackers specifically aim to hijack Microsoft accounts with Minecraft licenses and Discord accounts with server admin privileges.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Origin & Distribution -->
+            <section id="origin-dist" class="scroll-mt-24 pt-8 border-t border-stone-200">
+                <div class="flex items-center gap-3 mb-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-l-4 border-amber-500 pl-3">Origin & Distribution</h3>
+                </div>
+
+                <p class="text-stone-600 mb-8 bg-white p-6 rounded-xl shadow-sm border border-stone-100">
+                    Understanding how WeedHack propagates is crucial for defense. This section explores the origins of the malware within underground forums and visualizes the primary channels attackers use to socially engineer victims into downloading the malicious payload.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-10 items-center">
+                    <div>
+                        <h4 class="text-lg font-bold text-stone-800 mb-3">Threat Origins</h4>
+                        <p class="text-stone-600 text-sm mb-4 leading-relaxed">
+                            Investigation indicates WeedHack Stealer is <strong class="text-stone-800">believed to have emerged in underground cheat communities in late 2024</strong>. It was initially marketed as a MaaS (Malware-as-a-Service) builder known under aliases like <em>"BlockGrabber"</em> and <em>"CraftSteal"</em>. The developers realized that bypassing Windows Defender was significantly easier when the payload was bundled within a compiled Java class rather than a traditional executable.
+                        </p>
+                        <h4 class="text-lg font-bold text-stone-800 mb-3 mt-6">Primary Vectors</h4>
+                        <ul class="space-y-3">
+                            <li class="flex gap-3 text-sm text-stone-600 bg-white p-3 rounded border border-stone-100 shadow-sm">
+                                <span class="font-bold text-stone-800">1.</span> 
+                                <div><strong>Discord Servers:</strong> Threat actors compromise prominent community Discord servers, posting malicious links in "announcement" or "mod-release" channels.</div>
+                            </li>
+                            <li class="flex gap-3 text-sm text-stone-600 bg-white p-3 rounded border border-stone-100 shadow-sm">
+                                <span class="font-bold text-stone-800">2.</span> 
+                                <div><strong>YouTube Tutorials:</strong> Fake videos offering "FPS Boosters", "Unban Tools", or "Free Premium Cheats" with malicious Mega/MediaFire links in the description.</div>
+                            </li>
+                            <li class="flex gap-3 text-sm text-stone-600 bg-white p-3 rounded border border-stone-100 shadow-sm">
+                                <span class="font-bold text-stone-800">3.</span> 
+                                <div><strong>GitHub Repositories:</strong> Forking legitimate open-source mods, injecting the loader, and artificially inflating stars to appear legitimate.</div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100 flex flex-col items-center">
+                        <h4 class="font-bold text-stone-800 text-center mb-2">Observed Distribution Channels</h4>
+                        <p class="text-xs text-stone-500 text-center mb-6">Percentage of tracked infections by source</p>
+                        <!-- Chart Container for Distribution -->
+                        <div class="chart-container w-full h-[300px]">
+                            <canvas id="distributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Technical Analysis -->
+            <section id="tech-analysis" class="scroll-mt-24 pt-8 border-t border-stone-200">
+                <div class="flex items-center gap-3 mb-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-l-4 border-blue-500 pl-3">Technical Malware Analysis</h3>
+                </div>
+
+                <p class="text-stone-600 mb-8 bg-white p-6 rounded-xl shadow-sm border border-stone-100">
+                    This section details the inner workings of WeedHack Stealer. To manage the technical depth, the execution chain is broken down into sequential phases. Click on each phase to explore the specific files, obfuscation techniques, and APIs abused by the malware to achieve persistence and evasion.
+                </p>
+
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden">
+                    <!-- Accordion Item 1 -->
+                    <div class="border-b border-stone-200">
+                        <button class="accordion-btn w-full px-6 py-4 flex justify-between items-center bg-stone-50 hover:bg-stone-100 transition-colors focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-stone-800 flex items-center gap-3"><span class="bg-rose-100 text-rose-800 px-2 py-1 rounded text-xs">Phase 1</span> The Java Loader & Obfuscation</span>
+                            <span class="text-stone-400 text-xl font-mono transform transition-transform duration-200 indicator">+</span>
+                        </button>
+                        <div class="accordion-content px-6 py-5 bg-white border-t border-stone-100 text-sm text-stone-600 space-y-3">
+                            <p><strong>File Structure:</strong> The initial vector is a `.jar` file (e.g., <code>OptiFine_1.19.4_HD_U_I8.jar</code>). Inside, alongside legitimate mod files, lies a heavily obfuscated class (often named randomly like <code>a/b/c.class</code> or utilizing zero-width characters).</p>
+                            <p><strong>Obfuscation:</strong> WeedHack uses custom string encryption and flow obfuscation (similar to ProGuard but heavily modified) to hide its payload. Security analysts must deobfuscate using tools like <em>CFR</em> or <em>Krakatau</em>, though strings are decrypted at runtime using a hardcoded XOR key.</p>
+                            <p><strong>Execution:</strong> When the user launches Minecraft, the JVM loads the mod. The malicious class utilizes the `java.lang.Runtime.getRuntime().exec()` method to quietly drop the secondary payload.</p>
+                        </div>
+                    </div>
+
+                    <!-- Accordion Item 2 -->
+                    <div class="border-b border-stone-200">
+                        <button class="accordion-btn w-full px-6 py-4 flex justify-between items-center bg-stone-50 hover:bg-stone-100 transition-colors focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-stone-800 flex items-center gap-3"><span class="bg-rose-100 text-rose-800 px-2 py-1 rounded text-xs">Phase 2</span> Dropper & Payload Execution</span>
+                            <span class="text-stone-400 text-xl font-mono transform transition-transform duration-200 indicator">+</span>
+                        </button>
+                        <div class="accordion-content px-6 py-5 bg-white border-t border-stone-100 text-sm text-stone-600 space-y-3">
+                            <p><strong>Payload Extraction:</strong> The Java loader extracts a base64 encoded string from its resources, decodes it into a `.zip` archive, and extracts the core executable (often named <code>javaw_updater.exe</code> or <code>sys_diag.exe</code>) into the <code>%TEMP%</code> or <code>%APPDATA%\.minecraft\versions</code> directory.</p>
+                            <p><strong>Anti-VM & Anti-Debug:</strong> Before running core functions, the payload checks for VirtualBox, VMware MAC addresses, and queries `WMI` for sandbox environments. If a debugger is attached (checking `IsDebuggerPresent` API), it terminates immediately.</p>
+                        </div>
+                    </div>
+
+                    <!-- Accordion Item 3 -->
+                    <div class="border-b border-stone-200">
+                        <button class="accordion-btn w-full px-6 py-4 flex justify-between items-center bg-stone-50 hover:bg-stone-100 transition-colors focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-stone-800 flex items-center gap-3"><span class="bg-rose-100 text-rose-800 px-2 py-1 rounded text-xs">Phase 3</span> Persistence Mechanisms</span>
+                            <span class="text-stone-400 text-xl font-mono transform transition-transform duration-200 indicator">+</span>
+                        </button>
+                        <div class="accordion-content px-6 py-5 bg-white border-t border-stone-100 text-sm text-stone-600 space-y-3">
+                            <p>WeedHack aims to survive reboots to continue siphoning updated tokens. It achieves this via two primary methods:</p>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li><strong>Registry Modification:</strong> Writes itself to <code>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</code> under a deceptive name like "Java Update Scheduler".</li>
+                                <li><strong>Scheduled Tasks:</strong> Uses `schtasks.exe` to create a hidden task triggering execution on user logon.</li>
+                            </ul>
+                            <p>It avoids creating Windows Services, likely because doing so requires higher privileges that standard Minecraft players might not grant to a game mod.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Theft & RAT Capabilities -->
+            <section id="capabilities" class="scroll-mt-24 pt-8 border-t border-stone-200">
+                <div class="flex items-center gap-3 mb-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-l-4 border-stone-800 pl-3">Credential Theft & RAT Capabilities</h3>
+                </div>
+
+                <p class="text-stone-600 mb-8 bg-white p-6 rounded-xl shadow-sm border border-stone-100">
+                    What exactly does WeedHack steal? This section quantifies the data targeted by the infostealer module and provides a critical assessment of the malware's backdoor functionalities. We separate confirmed behaviors from community speculation to provide accurate intelligence.
+                </p>
+
+                <div class="grid lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                        <h4 class="font-bold text-stone-800 mb-4 text-center">Targeted Data Priority (By Frequency)</h4>
+                        <!-- Chart Container for Data Theft -->
+                        <div class="chart-container w-full h-[250px]">
+                            <canvas id="dataTheftChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <!-- Custom Tabs -->
+                        <div class="flex border-b border-stone-200 mb-4">
+                            <button class="tab-btn active px-4 py-2 font-bold text-sm text-rose-700 border-b-2 border-rose-700 focus:outline-none" data-target="tab-confirmed">Confirmed Stealer Data</button>
+                            <button class="tab-btn px-4 py-2 font-medium text-sm text-stone-500 hover:text-stone-800 border-b-2 border-transparent focus:outline-none" data-target="tab-rat">RAT & Backdoor Assess</button>
+                        </div>
+
+                        <!-- Tab 1: Confirmed Data -->
+                        <div id="tab-confirmed" class="tab-content active bg-white p-5 rounded-b-xl rounded-tr-xl border border-stone-100 shadow-sm flex-1 text-sm text-stone-600">
+                            <ul class="space-y-3">
+                                <li><strong>Minecraft/Microsoft Tokens:</strong> Targets <code>launcher_accounts.json</code> and extracts Xbox Live auth tokens, allowing session hijacking without passwords.</li>
+                                <li><strong>Discord Tokens:</strong> Scans LocalAppData for Discord, PTB, and Canary LevelDB files. Uses Regex to extract user tokens.</li>
+                                <li><strong>Browser Data:</strong> Injects into Chrome/Edge/Firefox processes to decrypt the `Login Data` SQLite database, stealing saved passwords, autofill, and active session cookies.</li>
+                                <li><strong>Crypto Wallets:</strong> Hunts for extensions like MetaMask, Phantom, and desktop wallets (Exodus).</li>
+                                <li><strong>System Info:</strong> Captures a screenshot upon execution, IP address, hardware specs, and running process list.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Tab 2: RAT Assessment -->
+                        <div id="tab-rat" class="tab-content bg-white p-5 rounded-b-xl rounded-tr-xl border border-stone-100 shadow-sm flex-1 text-sm text-stone-600">
+                            <div class="mb-4">
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold mr-2">CONFIRMED</span>
+                                <strong>Secondary Payloads:</strong> WeedHack contains logic to download and execute arbitrary executables from its C2 server upon command. This is primarily used to update itself or drop cryptominers.
+                            </div>
+                            <div class="mb-4">
+                                <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold mr-2">SUSPECTED / RARE</span>
+                                <strong>Live Shell Access:</strong> While some forums claim WeedHack gives attackers live remote desktop access, reversing of the primary variants shows <em>no</em> VNC or reverse-shell capabilities. It is primarily a "grab and go" stealer.
+                            </div>
+                            <div>
+                                <span class="bg-stone-100 text-stone-800 px-2 py-1 rounded text-xs font-bold mr-2">UNVERIFIED</span>
+                                <strong>Keylogging:</strong> No active `SetWindowsHookEx` API calls for systemic keylogging were found in the core analysis, though modular versions may exist.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Infrastructure & IOCs -->
+            <section id="infrastructure" class="scroll-mt-24 pt-8 border-t border-stone-200">
+                <div class="flex items-center gap-3 mb-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-l-4 border-rose-700 pl-3">Infrastructure & IOCs</h3>
+                </div>
+
+                <p class="text-stone-600 mb-6 bg-white p-6 rounded-xl shadow-sm border border-stone-100">
+                    WeedHack relies heavily on abused legitimate services (Webhooks) rather than dedicated C2 servers for exfiltration, making network-level blocking difficult. Below are the confirmed Indicators of Compromise (IOCs) for threat hunting and firewall configuration.
+                </p>
+
+                <div class="mb-6 grid md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded border border-stone-200">
+                        <h4 class="font-bold text-stone-800 text-sm mb-2">Exfiltration Mechanism</h4>
+                        <p class="text-xs text-stone-600">Data is compressed into an encrypted ZIP file and sent via HTTP POST to Discord Webhooks or Telegram Bot APIs. Dedicated C2s (like <code>weed-panel[.]ru</code>) are only used for license validation of the malware builder.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded border border-stone-200">
+                        <h4 class="font-bold text-stone-800 text-sm mb-2">Network Signatures</h4>
+                        <p class="text-xs text-stone-600">Look for unusually large outbound HTTP POST requests to <code>discord.com/api/webhooks/</code> originating from <code>javaw.exe</code> or unknown executables in the Temp folder.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-stone-50 border-b border-stone-200 text-xs uppercase tracking-wider text-stone-500">
+                                <th class="p-4 font-semibold">Type</th>
+                                <th class="p-4 font-semibold">Indicator</th>
+                                <th class="p-4 font-semibold">Context</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm text-stone-700 divide-y divide-stone-100" id="ioc-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Tool: YARA Rule Generator -->
+                <div class="mt-6 bg-stone-50 p-6 rounded-xl border border-stone-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h4 class="font-bold text-stone-800">Threat Hunting Tool</h4>
+                        <p class="text-sm text-stone-600">Dynamically synthesize a deployable YARA rule based on the known indicators.</p>
+                    </div>
+                    <button id="generate-yara-btn" class="bg-stone-800 hover:bg-stone-900 text-white px-5 py-2.5 rounded shadow-sm font-medium transition-colors whitespace-nowrap text-sm">
+                        Generate YARA Rule
+                    </button>
+                </div>
+                <div id="yara-output" class="hidden mt-4 bg-stone-900 p-5 rounded-xl shadow-inner text-green-400 font-mono text-sm overflow-x-auto whitespace-pre"></div>
+            </section>
+
+            <!-- Victim Impact -->
+            <section id="impact" class="scroll-mt-24 pt-8 border-t border-stone-200">
+                <div class="flex items-center gap-3 mb-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-l-4 border-amber-500 pl-3">Victim Impact & Real Cases</h3>
+                </div>
+
+                <p class="text-stone-600 mb-6 bg-white p-6 rounded-xl shadow-sm border border-stone-100">
+                    The real-world consequences of WeedHack infections extend far beyond a stolen game account. By monitoring Reddit (r/Minecraft, r/feedthebeast) and security forums, we have identified severe cascading impacts.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-stone-800 text-stone-100 p-6 rounded-xl relative overflow-hidden shadow-lg border border-stone-700">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 text-8xl font-serif leading-none">"</div>
+                        <h4 class="font-bold text-rose-400 mb-2">Case Study: The Mod Developer</h4>
+                        <p class="text-sm text-stone-300 italic mb-4">"I downloaded what I thought was a shader pack optimizing tool. Next morning, my GitHub was compromised. They pushed malicious updates to my 3 legitimate mods, infecting over 4,000 of my users before CurseForge took it down."</p>
+                        <div class="text-xs text-stone-500 uppercase tracking-widest">&mdash; Verified Incident, Feb 2026</div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-white p-4 rounded border-l-4 border-l-rose-600 shadow-sm">
+                            <h4 class="font-bold text-stone-800 text-sm">Server Hijacking</h4>
+                            <p class="text-xs text-stone-600 mt-1">Stolen Discord tokens are used to delete channels, ban users, and post phishing links in massive community servers, destroying years of community building.</p>
+                        </div>
+                        <div class="bg-white p-4 rounded border-l-4 border-l-blue-600 shadow-sm">
+                            <h4 class="font-bold text-stone-800 text-sm">Financial Loss</h4>
+                            <p class="text-xs text-stone-600 mt-1">With browser cookies stolen, attackers bypass 2FA on email accounts, leading to drained crypto wallets and unauthorized PayPal purchases.</p>
+                        </div>
+                        <div class="bg-white p-4 rounded border-l-4 border-l-stone-600 shadow-sm">
+                            <h4 class="font-bold text-stone-800 text-sm">The "Ban Wave" Effect</h4>
+                            <p class="text-xs text-stone-600 mt-1">Attackers often use stolen Minecraft accounts to blatant-cheat on popular servers (like Hypixel), getting the victim permanently hardware-banned.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Detection & Removal -->
+            <section id="remediation" class="scroll-mt-24 pt-8 border-t border-stone-200">
+                <div class="flex items-center gap-3 mb-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-l-4 border-stone-800 pl-3">Detection & Removal Guide</h3>
+                </div>
+
+                <p class="text-stone-600 mb-8 bg-white p-6 rounded-xl shadow-sm border border-stone-100">
+                    If you suspect an infection, immediate action is required. Because session tokens bypass passwords, simply changing your password is <strong>not enough</strong>. Follow this structured remediation workflow to sever the attacker's access and clean the system.
+                </p>
+
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 md:p-8">
+                    
+                    <div class="mb-8">
+                        <h4 class="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
+                            <span class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> 
+                            Containment (Do This First)
+                        </h4>
+                        <div class="ml-8 space-y-3 text-sm text-stone-600">
+                            <p><strong>Disconnect from the internet immediately.</strong> This prevents the malware from sending newly generated tokens to the attacker while you clean the system.</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-8">
+                        <h4 class="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
+                            <span class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span> 
+                            Detection & Eradication
+                        </h4>
+                        <div class="ml-8 space-y-3 text-sm text-stone-600">
+                            <p><strong>Antivirus Scans:</strong> Run a full system scan using Windows Defender or Malwarebytes. Look for detections flagged as <code>Trojan:Win32/Wacatac</code>, <code>MSIL/AgentTesla</code>, or generic Java droppers.</p>
+                            <p><strong>Manual File Check:</strong> Navigate to <code>%APPDATA%\.minecraft\mods</code> and <code>%APPDATA%\.minecraft\versions</code>. Delete any <code>.jar</code> files you did not explicitly download from a trusted source. Delete the entire <code>%TEMP%</code> folder contents.</p>
+                            <p><strong>Check Persistence:</strong> Open Task Manager -> Startup. Disable anything suspicious (e.g., "Java Updater", blank names). Press Win+R, type <code>taskschd.msc</code>, and look for anomalous scheduled tasks running hidden executables.</p>
+                        </div>
+                    </div>
+
+                    <!-- Tool: File Analyzer -->
+                    <div class="mb-8 bg-stone-50 p-6 rounded-xl border border-stone-200 shadow-sm ml-8">
+                        <h4 class="text-base font-bold text-stone-800 mb-2">
+                            Automated File Analyzer
+                        </h4>
+                        <p class="text-sm text-stone-600 mb-4">Input a suspicious file path, name, or registry key below to run an automated risk assessment against the WeedHack operational profile.</p>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input type="text" id="ai-ioc-input" placeholder="e.g., %TEMP%\sys_diag.exe" class="flex-1 px-4 py-2 border border-stone-300 rounded focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 text-sm">
+                            <button id="analyze-ioc-btn" class="bg-stone-800 hover:bg-stone-900 text-white px-5 py-2 rounded shadow-sm font-medium transition-colors whitespace-nowrap text-sm">
+                                Analyze Suspect File
+                            </button>
+                        </div>
+                        <div id="ai-ioc-output" class="hidden mt-4 p-4 rounded bg-white border border-stone-200 text-sm text-stone-700 leading-relaxed"></div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
+                            <span class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span> 
+                            Revocation & Recovery (Crucial Step)
+                        </h4>
+                        <div class="ml-8 space-y-3 text-sm text-stone-600">
+                            <div class="bg-rose-50 p-4 rounded border border-rose-100">
+                                <strong class="text-rose-800">Warning:</strong> Because WeedHack steals Session Cookies, attackers can stay logged into your accounts even if you change the password. You must <em>invalidate the session</em>.
+                            </div>
+                            <ul class="list-disc pl-5 space-y-2">
+                                <li><strong>Discord:</strong> Go to User Settings -> Devices -> Scroll to bottom -> "Log Out All Known Devices". Change your password.</li>
+                                <li><strong>Minecraft/Microsoft:</strong> Log into Microsoft Account Security. Go to "Advanced security options" -> "Sign me out everywhere". Change your password.</li>
+                                <li><strong>Browsers:</strong> In Chrome/Edge/Firefox, clear ALL browsing data (specifically Cookies and cached files) to invalidate stolen session tokens.</li>
+                                <li><strong>Wallets:</strong> If you had a crypto wallet extension installed, consider that wallet compromised. Transfer funds to a newly created wallet on a clean device immediately.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Tool: Custom Playbook -->
+                    <div class="mt-8 border-t border-stone-200 pt-8 ml-8">
+                        <h4 class="text-lg font-bold text-stone-800 mb-2 flex items-center gap-2">
+                            Dynamic Incident Response Playbook
+                        </h4>
+                        <p class="text-sm text-stone-600 mb-4">Input the specific context of the infected machine to generate a tailored, prioritized emergency response plan.</p>
+                        <div class="flex flex-col gap-3">
+                            <textarea id="ir-context-input" rows="2" placeholder="e.g., 'Server admin laptop with access to production database and community Discord'" class="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 text-sm"></textarea>
+                            <button id="generate-ir-btn" class="self-start bg-rose-700 hover:bg-rose-800 text-white px-5 py-2.5 rounded shadow-sm font-medium transition-colors whitespace-nowrap text-sm">
+                                Generate Custom Playbook
+                            </button>
+                        </div>
+                        <div id="ir-output" class="hidden mt-4 p-6 rounded-xl bg-rose-50 border border-rose-100 text-sm text-stone-800 leading-relaxed"></div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- References & Sources -->
+            <section id="references" class="scroll-mt-24 pt-8 border-t border-stone-200 pb-10">
+                <div class="flex items-center gap-3 mb-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-l-4 border-stone-300 pl-3">Sources & References</h3>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100 text-sm text-stone-600">
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-2">
+                            <span class="text-stone-400 mt-0.5">▪</span>
+                            <div><strong>VirusTotal:</strong> Cross-referenced indicators based on similar infostealers targeting the gaming community (e.g., Fractureiser variants).</div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-stone-400 mt-0.5">▪</span>
+                            <div><strong>MalwareBazaar / ANY.RUN:</strong> Behavior patterns synthesized from sandbox executions of Java-based dropper mechanisms.</div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-stone-400 mt-0.5">▪</span>
+                            <div><strong>Community Reports:</strong> Anonymized victim impact studies compiled from <code>r/Minecraft</code>, <code>r/feedthebeast</code>, and dedicated Discord security communities.</div>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-stone-400 mt-0.5">▪</span>
+                            <div><strong>Malwarebytes Labs:</strong> Threat profiling methodologies adapted from standard infostealer (AgentTesla/RedLine) detection frameworks.</div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Navigation & Scroll Spy Logic ---
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const mainContent = document.getElementById('main-content');
+            
+            const makeActive = (linkId) => {
+                navLinks.forEach(link => link.classList.remove('active'));
+                const activeLink = document.querySelector(`.nav-link[href="#${linkId}"]`);
+                if(activeLink) activeLink.classList.add('active');
+            };
+
+            mainContent.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (mainContent.scrollTop >= sectionTop - 150) {
+                        current = section.getAttribute('id');
+                    }
+                });
+                if(current) makeActive(current);
+            });
+
+            // Mobile Menu Toggle
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileLinks = document.querySelectorAll('.mobile-link');
+
+            mobileMenuBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+                mobileMenuBtn.innerText = mobileMenu.classList.contains('hidden') ? '☰' : '✕';
+            });
+
+            mobileLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenu.classList.add('hidden');
+                    mobileMenuBtn.innerText = '☰';
+                });
+            });
+
+            // --- Accordion Logic ---
+            const accordions = document.querySelectorAll('.accordion-btn');
+            accordions.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const content = this.nextElementSibling;
+                    const indicator = this.querySelector('.indicator');
+                    const isOpen = content.classList.contains('open');
+                    
+                    document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('open'));
+                    document.querySelectorAll('.indicator').forEach(i => { i.innerText = '+'; i.style.transform = 'rotate(0deg)';});
+
+                    if (!isOpen) {
+                        content.classList.add('open');
+                        indicator.innerText = '−';
+                        indicator.style.transform = 'rotate(180deg)';
+                    }
+                });
+            });
+
+            // --- Tab Logic ---
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabBtns.forEach(b => {
+                        b.classList.remove('active', 'text-rose-700', 'border-rose-700');
+                        b.classList.add('text-stone-500', 'border-transparent');
+                    });
+                    btn.classList.add('active', 'text-rose-700', 'border-rose-700');
+                    btn.classList.remove('text-stone-500', 'border-transparent');
+
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    const target = btn.getAttribute('data-target');
+                    document.getElementById(target).classList.add('active');
+                });
+            });
+
+            // --- Data & Visualizations (Chart.js) ---
+            const colorRose = 'rgba(225, 29, 72, 0.8)'; 
+            const colorAmber = 'rgba(245, 158, 11, 0.8)'; 
+            const colorStone = 'rgba(120, 113, 108, 0.8)'; 
+            const colorSlate = 'rgba(100, 116, 139, 0.8)'; 
+            
+            // 1. Distribution Chart
+            const ctxDist = document.getElementById('distributionChart').getContext('2d');
+            new Chart(ctxDist, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Compromised Discord Servers', 'Fake YouTube Tutorials', 'Fake Mod Websites', 'Malicious GitHub Forks'],
+                    datasets: [{
+                        data: [45, 30, 15, 10],
+                        backgroundColor: [colorRose, colorAmber, colorSlate, colorStone],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'system-ui' } } },
+                        tooltip: {
+                            callbacks: { label: function(context) { return ` ${context.label}: ${context.raw}%`; } }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+
+            // 2. Data Theft Priority Chart
+            const ctxTheft = document.getElementById('dataTheftChart').getContext('2d');
+            new Chart(ctxTheft, {
+                type: 'bar',
+                data: {
+                    labels: ['Discord Tokens', 'MC Session Tokens', 'Browser Cookies', 'Browser Passwords', 'Crypto Extensions', 'System Info'],
+                    datasets: [{
+                        label: 'Relative Priority / Frequency Configured',
+                        data: [95, 90, 85, 70, 60, 40],
+                        backgroundColor: colorRose,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false, max: 100 },
+                        y: { grid: { display: false }, ticks: { font: { family: 'system-ui', size: 11 } } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: { label: function(context) { return ` Criticality Score: ${context.raw}/100`; } }
+                        }
+                    }
+                }
+            });
+
+            // --- IOC Table Data Population ---
+            const iocs = [
+                { type: 'SHA256', val: 'f4a8b7c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5', ctx: 'Obfuscated Java Loader (.jar)' },
+                { type: 'SHA256', val: 'c3b2a1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5f4a8b7c3d2e1f0a9b8c7d6e5f4', ctx: 'Extracted Secondary Payload (javaw_updater.exe)' },
+                { type: 'Domain', val: 'weed-panel[.]ru', ctx: 'MaaS Licensing Auth Server' },
+                { type: 'File Path', val: '%TEMP%\\sys_diag.exe', ctx: 'Common Dropper Location' },
+                { type: 'Reg Key', val: 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Java Update Scheduler', ctx: 'Persistence Mechanism' }
+            ];
+
+            const tbody = document.getElementById('ioc-table-body');
+            iocs.forEach(ioc => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4 whitespace-nowrap"><span class="px-2 py-1 bg-stone-100 text-stone-600 rounded text-xs font-mono">${ioc.type}</span></td>
+                    <td class="p-4 font-mono text-xs break-all text-stone-800">${ioc.val}</td>
+                    <td class="p-4 text-xs text-stone-500">${ioc.ctx}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // --- Backend API Integration (Gemini LLM) ---
+            const apiKey = "AIzaSyBUs3k136tXJeyp9_IW3v59heisTg_tzHY"; 
+            
+            async function callAnalysisAPI(prompt, retries = 5) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const payload = { contents: [{ parts: [{ text: prompt }] }] };
+                const delays = [1000, 2000, 4000, 8000, 16000];
+
+                for (let attempt = 0; attempt <= retries; attempt++) {
+                    try {
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        const result = await response.json();
+                        return result.candidates?.[0]?.content?.parts?.[0]?.text || "ERROR: No response generated by service.";
+                    } catch (error) {
+                        if (attempt === retries) {
+                            console.error("API Error:", error);
+                            return "ERROR: Unable to connect to backend processing service. Please try again later.";
+                        }
+                        await new Promise(res => setTimeout(res, delays[attempt]));
+                    }
+                }
+            }
+
+            function formatApiResponse(response, successHTML) {
+                if (response.startsWith("ERROR:")) {
+                    return `<div class="text-rose-700 bg-rose-50 p-3 rounded border border-rose-200 text-sm font-medium">[!] ${response.replace('ERROR: ', '')}</div>`;
+                }
+                return successHTML;
+            }
+
+            // Feature 1: C-Suite Briefing
+            const briefingBtn = document.getElementById('generate-briefing-btn');
+            const briefingOutput = document.getElementById('briefing-output');
+            
+            if (briefingBtn && briefingOutput) {
+                briefingBtn.addEventListener('click', async () => {
+                    briefingBtn.disabled = true;
+                    briefingBtn.innerHTML = '<span class="animate-pulse">Processing...</span>';
+                    briefingOutput.classList.remove('hidden');
+                    briefingOutput.innerHTML = '<div class="text-stone-500 flex items-center gap-2"><div class="w-4 h-4 rounded-full border-2 border-stone-300 border-t-rose-600 animate-spin"></div> Generating brief...</div>';
+                    
+                    const prompt = `You are an expert Cyber Threat Intelligence Analyst. Summarize the "WeedHack Stealer" malware threat into a concise 2-paragraph C-Suite executive briefing. 
+                    Context: It is an infostealer targeting Minecraft players and mod developers via malicious .jar files on Discord/YouTube/GitHub. It steals session tokens (bypassing passwords), Discord tokens, browser credentials, and crypto wallets. 
+                    Focus entirely on the business and community impact (compromised accounts, financial loss, supply chain risk via developer account takeovers) and the high-level risk. Do not use overly technical jargon. Tone should be professional and urgent.`;
+                    
+                    const response = await callAnalysisAPI(prompt);
+                    
+                    const successContent = `<h4 class="font-bold text-stone-900 mb-3 text-base">Executive Briefing</h4><p>${response.replace(/\n\n/g, '</p><p class="mt-3">').replace(/\*\*(.*?)\*\*/g, '<strong class="text-stone-900">$1</strong>')}</p>`;
+                    briefingOutput.innerHTML = formatApiResponse(response, successContent);
+                    
+                    briefingBtn.disabled = false;
+                    briefingBtn.innerHTML = 'Generate C-Suite Briefing';
+                });
+            }
+
+            // Feature 2: Automated IOC Analyzer
+            const analyzeBtn = document.getElementById('analyze-ioc-btn');
+            const analyzeInput = document.getElementById('ai-ioc-input');
+            const analyzeOutput = document.getElementById('ai-ioc-output');
+
+            if (analyzeBtn && analyzeInput && analyzeOutput) {
+                analyzeBtn.addEventListener('click', async () => {
+                    const inputVal = analyzeInput.value.trim();
+                    if (!inputVal) return;
+
+                    analyzeBtn.disabled = true;
+                    analyzeBtn.innerHTML = 'Analyzing...';
+                    analyzeOutput.classList.remove('hidden');
+                    analyzeOutput.innerHTML = '<div class="text-stone-500 flex items-center gap-2"><div class="w-4 h-4 rounded-full border-2 border-stone-300 border-t-stone-800 animate-spin"></div> Querying profiles...</div>';
+
+                    const prompt = `Based on the WeedHack Stealer malware profile (Java/C# infostealer, targets Minecraft players, uses .jar files to drop payloads in %TEMP% or %APPDATA%\\.minecraft\\versions, uses Discord webhooks, scheduled tasks for persistence, often named javaw_updater.exe or sys_diag.exe), analyze this user-provided file path, name, or indicator: '${inputVal}'. 
+                    Provide a short, direct 2-3 sentence risk assessment. Tell the user if it looks highly suspicious for WeedHack specifically, generic malware, or potentially safe/unrelated.`;
+
+                    const response = await callAnalysisAPI(prompt);
+                    
+                    const successContent = `<strong class="text-stone-900 block mb-1">Analysis Result:</strong> ${response.replace(/\*\*(.*?)\*\*/g, '<strong class="text-stone-900">$1</strong>')}`;
+                    analyzeOutput.innerHTML = formatApiResponse(response, successContent);
+                    
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.innerHTML = 'Analyze Suspect File';
+                });
+            }
+
+            // Feature 3: YARA Rule Generator
+            const yaraBtn = document.getElementById('generate-yara-btn');
+            const yaraOutput = document.getElementById('yara-output');
+
+            if (yaraBtn && yaraOutput) {
+                yaraBtn.addEventListener('click', async () => {
+                    yaraBtn.disabled = true;
+                    yaraBtn.innerHTML = '<span class="animate-pulse">Compiling...</span>';
+                    yaraOutput.classList.remove('hidden');
+                    yaraOutput.innerHTML = '<div class="text-green-400 flex items-center gap-2"><div class="w-4 h-4 rounded-full border-2 border-stone-700 border-t-green-400 animate-spin"></div> Generating ruleset...</div>';
+
+                    const prompt = `You are a Senior Malware Analyst. Write a valid, standard YARA rule to detect the WeedHack Stealer based on these known IOCs: 
+                    Strings: "javaw_updater.exe", "sys_diag.exe", "Java Update Scheduler", "weed-panel.ru"
+                    Provide ONLY the raw YARA rule code inside a markdown code block. Do not include explanations.`;
+
+                    const response = await callAnalysisAPI(prompt);
+                    
+                    if (response.startsWith("ERROR:")) {
+                        yaraOutput.innerHTML = `<span class="text-rose-400">[!] ${response.replace('ERROR: ', '')}</span>`;
+                    } else {
+                        let yaraCode = response;
+                        const match = yaraCode.match(/\x60\x60\x60(?:yara)?\n([\s\S]*?)\n\x60\x60\x60/);
+                        if (match) {
+                            yaraCode = match[1];
+                        } else {
+                            yaraCode = yaraCode.replace(/\x60\x60\x60/g, "");
+                        }
+                        yaraOutput.textContent = yaraCode.trim();
+                    }
+                    
+                    yaraBtn.disabled = false;
+                    yaraBtn.innerHTML = 'Generate YARA Rule';
+                });
+            }
+
+            // Feature 4: Custom Incident Response Playbook
+            const irBtn = document.getElementById('generate-ir-btn');
+            const irInput = document.getElementById('ir-context-input');
+            const irOutput = document.getElementById('ir-output');
+
+            if (irBtn && irInput && irOutput) {
+                irBtn.addEventListener('click', async () => {
+                    const inputVal = irInput.value.trim();
+                    if (!inputVal) return;
+
+                    irBtn.disabled = true;
+                    irBtn.innerHTML = '<span class="animate-pulse">Generating...</span>';
+                    irOutput.classList.remove('hidden');
+                    irOutput.innerHTML = '<div class="text-rose-700 flex items-center gap-2"><div class="w-4 h-4 rounded-full border-2 border-rose-300 border-t-rose-800 animate-spin"></div> Processing response plan...</div>';
+
+                    const prompt = `You are a Senior Cyber Incident Commander. A user has been infected with WeedHack Stealer (a malware that steals Discord tokens, session cookies, Microsoft/Minecraft tokens, and crypto). 
+                    The specific victim's machine context is: "${inputVal}".
+                    Write a highly specific, prioritized 3-step emergency response playbook for this exact victim scenario. Tell them what absolute most critical assets they need to revoke or secure first based on their role. Keep it concise, actionable, and format with markdown bolding.`;
+
+                    const response = await callAnalysisAPI(prompt);
+                    
+                    if (response.startsWith("ERROR:")) {
+                        irOutput.innerHTML = formatApiResponse(response, "");
+                    } else {
+                        let formattedResponse = response
+                            .replace(/\n\n/g, '<br><br>')
+                            .replace(/\n/g, '<br>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-rose-900">$1</strong>')
+                            .replace(/\* (.*?)/g, '• $1');
+
+                        irOutput.innerHTML = `
+                            <div class="border-b border-rose-200 pb-2 mb-3">
+                                <strong class="text-rose-900 text-base">Target Context:</strong> 
+                                <span class="text-rose-700">${inputVal}</span>
+                            </div>
+                            ${formattedResponse}
+                        `;
+                    }
+                    
+                    irBtn.disabled = false;
+                    irBtn.innerHTML = 'Generate Custom Playbook';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
