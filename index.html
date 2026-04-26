@@ -722,7 +722,7 @@
 
             // --- Backend API Integration (Gemini LLM) ---
             async function callAnalysisAPI(prompt, retries = 5) {
-                const url = '/.netlify/functions/gemini';
+                const url = '/api/gemini';
                 const payload = { prompt };
                 const delays = [1000, 2000, 4000, 8000, 16000];
 

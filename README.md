@@ -36,7 +36,7 @@ The dashboard interfaces directly with the Google Gemini API to provide real-tim
 
 ## DEPLOYMENT INSTRUCTIONS
 
-This tool is built as a pure Single Page Application (SPA). There are no build steps, Node.js dependencies, or complex backend requirements.
+This tool is built as a mostly static Single Page Application (SPA) with one Netlify serverless function that proxies Gemini API requests securely.
 
 ### Installation
 
@@ -51,19 +51,17 @@ cd weedhack-threat-intel
 
 To enable the automated analysis and YARA generation tools, a Google Gemini API key is required.
 
-1. Obtain a free API key from Google AI Studio.
-2. Open `index.html` in your text editor.
-3. Locate the `apiKey` constant in the JavaScript section (near the bottom of the file).
-4. Insert your key:
+1. Obtain a Gemini API key from Google AI Studio.
+2. In Netlify, add an environment variable named `GEMINI_API_KEY`.
+3. Deploy the site with the included `netlify.toml` and `netlify/functions/gemini.js`.
 
-```javascript
-const apiKey = "YOUR_API_KEY_HERE"; 
-```
-###  Security Note
- This is a client-side application. If deploying this dashboard publicly (e.g., via GitHub Pages or Vercel), do not hardcode your production API key directly into the source file. It is recommended to route these requests through a secure backend proxy or serverless function to protect your credentials.
+The frontend sends requests to `/api/gemini`, which Netlify rewrites to `/.netlify/functions/gemini` using the redirect in `netlify.toml`.
+
+### Security Note
+This project does not expose the Gemini API key in `index.html`. Keep the key only in Netlify environment variables so public deployments do not leak credentials.
 
 ### Execution
- Run the application by opening index.html directly in any modern web browser, or serve it locally using a tool like VSCode Live Server.
+Deploy the application on Netlify so the `/api/gemini` route can reach the serverless function. Opening `index.html` directly in a browser will render the dashboard, but the AI-assisted tools require the Netlify function and `GEMINI_API_KEY` environment variable.
 
 ### DISCLAIMER
  This dashboard and the intelligence contained within are provided strictly for educational, defensive research, and threat hunting purposes. Simulated data and hashes have been utilized to demonstrate functionality without distributing live malware signatures.
