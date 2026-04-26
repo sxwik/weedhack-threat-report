@@ -722,16 +722,14 @@
 
             // --- Backend API Integration (Gemini LLM) ---
             async function callAnalysisAPI(prompt, retries = 5) {
-                const url = '/api/gemini';
-                const payload = { prompt };
                 const delays = [1000, 2000, 4000, 8000, 16000];
 
                 for (let attempt = 0; attempt <= retries; attempt++) {
                     try {
-                        const response = await fetch(url, {
+                        const response = await fetch('/.netlify/functions/gemini', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
+                            body: JSON.stringify({ prompt: prompt })
                         });
                         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                         const result = await response.json();
